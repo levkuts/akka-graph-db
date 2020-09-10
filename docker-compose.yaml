@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+
+  cassandra:
+    image: cassandra
+    restart: always
+    ports:
+      - 7000:7000
+      - 7001:7001
+      - 9042:9042
+      - 9160:9160
+    volumes:
+      - ~/.cassandra-data:/var/lib/cassandra
+
+  postgres:
+    image: postgres
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - 5432:5432
+    volumes:
+      - ~/.postgres-data:/var/lib/postgresql/data
+      - ./sql:/docker-entrypoint-initdb.d
+
+  pgadmin:
+    image: dpage/pgadmin4
+    restart: always
+    ports:
+      - 80:80
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@domain.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    depends_on:
+      - postgres
+
+  writer1:
+    container_name: akka-graph-db-writer-node1
+    image: akka-graph-db
+    environment:
+      CLUSTER_PORT: 1600
+      HTTP_PORT: 8080
+      CLUSTER_IP: writer1
+      NODE_ROLE: 'write-model'
+      SEED_PORT_1600_TCP_ADDR: writer1
+      CASSANDRA_HOST: 'cassandra'
+      CASSANDRA_PORT: 9042
+      POSTGRES_HOST: postgres
+    ports:
+      - 1600:1600
+      - 8080:8080
+    depends_on:
+      - cassandra
+      - postgres
+
+  writer2:
+    container_name: akka-graph-db-writer-node2
+    image: akka-graph-db
+    environment:
+      CLUSTER_PORT: 1601
+      HTTP_PORT: 8081
+      CLUSTER_IP: writer2
+      NODE_ROLE: 'write-model'
+      SEED_PORT_1600_TCP_ADDR: writer1
+      CASSANDRA_HOST: 'cassandra'
+      CASSANDRA_PORT: 9042
+      POSTGRES_HOST: postgres
+    ports:
+      - 1601:1601
+      - 8081:8081
+    depends_on:
+      - cassandra
+      - postgres
+      - writer1
+
+  reader1:
+    container_name: akka-graph-db-reader-node1
+    image: akka-graph-db
+    environment:
+      CLUSTER_PORT: 1602
+      HTTP_PORT: 8082
+      CLUSTER_IP: reader1
+      NODE_ROLE: 'read-model'
+      SEED_PORT_1600_TCP_ADDR: writer1
+      CASSANDRA_HOST: 'cassandra'
+      CASSANDRA_PORT: 9042
+      POSTGRES_HOST: postgres
+    ports:
+      - 1602:1602
+      - 8082:8082
+    depends_on:
+      - cassandra
+      - postgres
+      - writer1
+
+  reader2:
+    container_name: akka-graph-db-reader-node2
+    image: akka-graph-db
+    environment:
+      CLUSTER_PORT: 1603
+      HTTP_PORT: 8083
+      CLUSTER_IP: reader2
+      NODE_ROLE: 'read-model'
+      SEED_PORT_1600_TCP_ADDR: writer1
+      CASSANDRA_HOST: 'cassandra'
+      CASSANDRA_PORT: 9042
+      POSTGRES_HOST: postgres
+    ports:
+      - 1603:1603
+      - 8083:8083
+    depends_on:
+      - cassandra
+      - postgres
+      - writer1
